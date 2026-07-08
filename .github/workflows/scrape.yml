@@ -1,0 +1,45 @@
+name: Scraper commenti live
+
+# Esegue lo scraping ogni 30 minuti + avvio manuale dal telefono
+# (tab Actions del repo -> Scraper commenti live -> Run workflow)
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install playwright firebase-admin
+          playwright install chromium --with-deps
+
+      - name: Create Firebase service account key
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > serviceAccountKey.json
+
+      - name: Run scraper BMW X5
+        run: python scraper_firestore.py --model "BMW X5" --urls urls.txt
+        continue-on-error: true
+
+      # Duplica il blocco qui sopra per altri modelli, cambiando --model
+      # e usando un file urls dedicato (es. urls_ix3.txt):
+      #
+      # - name: Run scraper BMW iX3
+      #   run: python scraper_firestore.py --model "BMW iX3" --urls urls_ix3.txt
+      #   continue-on-error: true
+
+      - name: Cleanup key
+        if: always()
+        run: rm -f serviceAccountKey.json
