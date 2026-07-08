@@ -327,6 +327,31 @@ def scroll_to_bottom(page, steps=12):
         pass
 
 
+def open_comments_section(page):
+    """Su Quattroruote (e siti simili) l'iframe Disqus NON è nel DOM iniziale:
+    va aperto cliccando esplicitamente il link 'LEGGI TUTTI I COMMENTI' /
+    'COMMENTA', che dinamicamente inietta il widget nella pagina."""
+    selectors = [
+        "text=/LEGGI TUTTI I COMMENTI/i",
+        "a:has-text('LEGGI TUTTI I COMMENTI')",
+        "text=/COMMENTA/i",
+        "a:has-text('COMMENTA')",
+    ]
+    for sel in selectors:
+        try:
+            link = page.locator(sel).first
+            if link.is_visible(timeout=2000):
+                link.scroll_into_view_if_needed()
+                link.click()
+                print("[COMMENTI] Cliccato il link per aprire la sezione commenti.")
+                random_delay(1.5, 2.5)
+                return True
+        except Exception:
+            continue
+    print("[COMMENTI] Nessun link 'apri commenti' trovato (forse già aperti o pagina senza sezione commenti).")
+    return False
+
+
 def scrape_url(browser, db, model: str, url: str) -> int:
     """Ritorna il numero di commenti NUOVI salvati su Firestore."""
     cfg, domain = get_domain_config(url)
@@ -354,6 +379,11 @@ def scrape_url(browser, db, model: str, url: str) -> int:
         # 2) scroll progressivo fino alla sezione commenti (attiva il lazy-load)
         scroll_to_bottom(page, steps=14)
 
+        # 3) apri esplicitamente la sezione commenti (su Quattroruote l'iframe
+        #    Disqus non esiste finché non si clicca "LEGGI TUTTI I COMMENTI")
+        open_comments_section(page)
+        random_delay(1.0, 2.0)
+
         if cfg["engine"] == "disqus":
             frame = None
             try:
@@ -369,6 +399,7 @@ def scrape_url(browser, db, model: str, url: str) -> int:
                 print(f"[RETRY] Iframe Disqus non trovato al primo tentativo su {url}, riprovo...")
                 accept_cookie_banner(page)
                 scroll_to_bottom(page, steps=10)
+                open_comments_section(page)
                 random_delay(1.5, 2.5)
                 try:
                     iframe_el = page.wait_for_selector(cfg["disqus_iframe_selector"],
