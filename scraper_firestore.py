@@ -267,6 +267,66 @@ def click_load_more(container, cfg):
             break
 
 
+def accept_cookie_banner(page):
+    """Prova a chiudere il banner GDPR: senza consenso, gli script di terze
+    parti (Disqus incluso) spesso non vengono nemmeno caricati."""
+    consent_selectors = [
+        "button:has-text('Accetta e chiudi')",
+        "button:has-text('Accetta tutto')",
+        "button:has-text('ACCETTA')",
+        "button:has-text('Accetta')",
+        "button:has-text('Accept all')",
+        "button:has-text('Accept')",
+        "#onetrust-accept-btn-handler",
+        "button#didomi-notice-agree-button",
+        ".iubenda-cs-accept-btn",
+        "[class*='consent'] button[class*='accept']",
+    ]
+    # 1) banner nel documento principale
+    for sel in consent_selectors:
+        try:
+            btn = page.locator(sel).first
+            if btn.is_visible(timeout=1500):
+                btn.click()
+                print("[COOKIE] Banner consensi accettato (pagina principale).")
+                random_delay(1.0, 2.0)
+                return True
+        except Exception:
+            continue
+    # 2) banner dentro un iframe (es. Sourcepoint/TCF usato da molti editori)
+    for frame in page.frames:
+        furl = (frame.url or "").lower()
+        if any(k in furl for k in ("consent", "sourcepoint", "privacy", "cmp")):
+            for sel in consent_selectors + ["button[title*='Accetta']", "button[title*='ACCETTA']"]:
+                try:
+                    btn = frame.locator(sel).first
+                    if btn.is_visible(timeout=1500):
+                        btn.click()
+                        print("[COOKIE] Banner consensi accettato (iframe CMP).")
+                        random_delay(1.0, 2.0)
+                        return True
+                except Exception:
+                    continue
+    print("[COOKIE] Nessun banner consensi rilevato (o già accettato).")
+    return False
+
+
+def scroll_to_bottom(page, steps=12):
+    """Scroll progressivo fino in fondo: molti siti caricano Disqus in lazy-load
+    solo quando la sezione commenti entra nella viewport."""
+    for _ in range(steps):
+        page.mouse.wheel(0, 1600)
+        random_delay(0.4, 0.9)
+    # se esiste il contenitore Disqus, portalo esplicitamente in vista
+    try:
+        thread = page.locator("#disqus_thread").first
+        if thread.count() > 0:
+            thread.scroll_into_view_if_needed(timeout=3000)
+            random_delay(1.0, 2.0)
+    except Exception:
+        pass
+
+
 def scrape_url(browser, db, model: str, url: str) -> int:
     """Ritorna il numero di commenti NUOVI salvati su Firestore."""
     cfg, domain = get_domain_config(url)
@@ -286,23 +346,44 @@ def scrape_url(browser, db, model: str, url: str) -> int:
 
     try:
         page.goto(url, timeout=30000, wait_until="domcontentloaded")
-        random_delay(1.0, 2.0)
-        page.mouse.wheel(0, 3000)
-        random_delay(0.5, 1.2)
+        random_delay(1.5, 2.5)
+
+        # 1) chiudi il banner GDPR: senza consenso Disqus spesso non si carica
+        accept_cookie_banner(page)
+
+        # 2) scroll progressivo fino alla sezione commenti (attiva il lazy-load)
+        scroll_to_bottom(page, steps=14)
 
         if cfg["engine"] == "disqus":
+            frame = None
             try:
                 iframe_el = page.wait_for_selector(cfg["disqus_iframe_selector"],
                                                     timeout=DEFAULT_TIMEOUT_MS)
                 frame = iframe_el.content_frame()
-                if frame is None:
-                    print(f"[ATTENZIONE] Iframe Disqus inaccessibile su {url}")
-                    return 0
-                click_load_more(frame, cfg)
-                raw = extract_comments_from_container(frame, cfg, url, domain)
             except PlaywrightTimeoutError:
-                print(f"[INFO] Nessun iframe Disqus su {url}.")
+                pass
+
+            if frame is None:
+                # Retry: alcuni siti caricano Disqus solo al secondo giro di
+                # scroll, o il banner è comparso di nuovo dopo un redirect.
+                print(f"[RETRY] Iframe Disqus non trovato al primo tentativo su {url}, riprovo...")
+                accept_cookie_banner(page)
+                scroll_to_bottom(page, steps=10)
+                random_delay(1.5, 2.5)
+                try:
+                    iframe_el = page.wait_for_selector(cfg["disqus_iframe_selector"],
+                                                        timeout=DEFAULT_TIMEOUT_MS)
+                    frame = iframe_el.content_frame()
+                except PlaywrightTimeoutError:
+                    print(f"[INFO] Nessun iframe Disqus su {url} (nessun commento o thread disattivato).")
+                    return 0
+
+            if frame is None:
+                print(f"[ATTENZIONE] Iframe Disqus individuato ma inaccessibile su {url}")
                 return 0
+
+            click_load_more(frame, cfg)
+            raw = extract_comments_from_container(frame, cfg, url, domain)
         else:
             click_load_more(page, cfg)
             # scroll infinito di sicurezza
