@@ -30,23 +30,48 @@ jobs:
         run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > serviceAccountKey.json
 
       # --- YOUTUBE: fonte gratuita e senza blocchi, via API ufficiale ---
+      # Un video = un modello specifico. Non riusare mai lo stesso video ID
+      # sotto un --model diverso: creerebbe etichette sbagliate su Firestore.
+
       - name: Run YouTube fetcher BMW X5
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: >
           python youtube_firestore.py --model "BMW X5"
-          --video-ids iNhLIrK_xoU hovl1LbuTjc IBqtfZIeFK8 YcCCbAmf_XI
+          --video-ids iNhLIrK_xoU
         continue-on-error: true
 
-      # Duplica il blocco qui sopra per altri modelli / competitor, es:
-      #
-      # - name: Run YouTube fetcher Mercedes GLE
-      #   env:
-      #     YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-      #   run: >
-      #     python youtube_firestore.py --model "Mercedes GLE 2026"
-      #     --search "Mercedes GLE 2026 review"
-      #   continue-on-error: true
+      - name: Run YouTube fetcher BMW i7
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: >
+          python youtube_firestore.py --model "BMW i7"
+          --video-ids IBqtfZIeFK8
+        continue-on-error: true
+
+      - name: Run YouTube fetcher BMW i3
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: >
+          python youtube_firestore.py --model "BMW i3"
+          --video-ids YcCCbAmf_XI
+        continue-on-error: true
+
+      - name: Run YouTube fetcher BMW iX3
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: >
+          python youtube_firestore.py --model "BMW iX3"
+          --video-ids hovl1LbuTjc
+        continue-on-error: true
+
+      - name: Run YouTube fetcher BMW i4
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: >
+          python youtube_firestore.py --model "BMW i4"
+          --video-ids -SbbyrUv9tY
+        continue-on-error: true
 
       # --- QUATTRORUOTE: lasciato attivo, ma sappiamo che al momento
       # si scontra con un muro anti-adblock e restituirà 0 commenti ---
