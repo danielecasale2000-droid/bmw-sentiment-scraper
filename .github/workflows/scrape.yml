@@ -70,7 +70,7 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: >
           python youtube_firestore.py --model "BMW i4"
-          -video-ids -SbbyrUv9tY
+          --video-ids=-SbbyrUv9tY
         continue-on-error: true
 
       # --- QUATTRORUOTE: lasciato attivo, ma sappiamo che al momento
