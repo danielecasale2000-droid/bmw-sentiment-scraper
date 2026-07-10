@@ -1,0 +1,32 @@
+name: Correggi etichette modelli (una tantum)
+
+# Esecuzione SOLO manuale: sistema le etichette 'model' sbagliate
+# sui commenti già presenti su Firestore. Da lanciare una volta sola.
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install firebase-admin
+
+      - name: Create Firebase service account key
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > serviceAccountKey.json
+
+      - name: Run label fix
+        run: python fix_model_labels.py
+
+      - name: Cleanup key
+        if: always()
+        run: rm -f serviceAccountKey.json
