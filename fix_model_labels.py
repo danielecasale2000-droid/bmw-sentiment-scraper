@@ -81,6 +81,5 @@ def main():
 
     print(f"\n✔️ Completato: {total_checked} commenti controllati, {total_fixed} etichette corrette.")
 
-
 if _name_ == "_main_":
     main()
