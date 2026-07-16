@@ -1,0 +1,103 @@
+name: Scraper competitor (YouTube)
+
+# Esegue lo scraping dei 28 modelli competitor in PARALLELO (matrix),
+# molto più veloce di 28 step in sequenza in un solo job.
+# Ogni job richiede solo google-api-python-client + firebase-admin,
+# niente Playwright/Chromium: sono job leggeri (~20-30s ciascuno).
+on:
+  schedule:
+    - cron: '15,45 * * * *'   # sfasato di 15 min rispetto allo scrape.yml BMW
+  workflow_dispatch:
+
+jobs:
+  scrape-competitors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      max-parallel: 15
+      matrix:
+        include:
+          - model: "Avatr 12"
+            video_id: "H7x_TtJtLB8"
+          - model: "BYD Atto 2 DM-i"
+            video_id: "e6FDDtu2NWQ"
+          - model: "BYD Atto 3"
+            video_id: "hUOp28nzAgM"
+          - model: "BYD Han"
+            video_id: "no5BIvq7zVI"
+          - model: "BYD Seal"
+            video_id: "6j7_NJJjRSQ"
+          - model: "BYD Seal 06"
+            video_id: "-uHQ8U_xEf4"
+          - model: "BYD Seal U"
+            video_id: "am5BcAUhvv4"
+          - model: "BYD Sealion 7"
+            video_id: "zU3EK1pfvo8"
+          - model: "Changan Qiyuan A07"
+            video_id: "XQ6w7HzU7Ys"
+          - model: "Deepal S05"
+            video_id: "LKnERVqDiOI"
+          - model: "Deepal S07"
+            video_id: "N0ZjVuwdUK4"
+          - model: "Denza Z9 GT"
+            video_id: "xBoBN9I6LT4"
+          - model: "Geely EX5"
+            video_id: "4l6-Fuko1a4"
+          - model: "Geely Galaxy E8"
+            video_id: "YLKM78w-4TQ"
+          - model: "Genesis G80"
+            video_id: "-iItA_q7t3A"
+          - model: "Genesis GV60"
+            video_id: "4PDgEa_opO8"
+          - model: "Genesis GV70"
+            video_id: "iXdjA31ZgOU"
+          - model: "GWM Wey 03"
+            video_id: "xqCc8D_fkcM"
+          - model: "GWM Wey 05"
+            video_id: "h9PUT9X8pEs"
+          - model: "IM L7"
+            video_id: "73c_mOiEx4w"
+          - model: "Jaecoo 7"
+            video_id: "m3Wnu4p9YJs"
+          - model: "Jaecoo 8"
+            video_id: "6ibvCaiVxQc"
+          - model: "Leapmotor B10"
+            video_id: "kqyoM6Cll6U"
+          - model: "Leapmotor C10"
+            video_id: "GyPc3LXjfts"
+          - model: "MG HS"
+            video_id: "AR41YZlBtoc"
+          - model: "Omoda 7"
+            video_id: "iMWN1tsAeAQ"
+          - model: "Omoda 9"
+            video_id: "_1oabJi4yrY"
+          - model: "Xpeng G6"
+            video_id: "DdhgKds2ybU"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install firebase-admin google-api-python-client
+
+      - name: Create Firebase service account key
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > serviceAccountKey.json
+
+      - name: Run YouTube fetcher
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: >
+          python youtube_firestore.py --model "${{ matrix.model }}"
+          --video-ids=${{ matrix.video_id }}
+        continue-on-error: true
+
+      - name: Cleanup key
+        if: always()
+        run: rm -f serviceAccountKey.json
