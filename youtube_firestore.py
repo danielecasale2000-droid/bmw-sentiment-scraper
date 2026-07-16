@@ -214,7 +214,11 @@ def parse_args():
     p = argparse.ArgumentParser(description="YouTube -> Firestore per dashboard live (gratuito, API ufficiale)")
     p.add_argument("--model", required=True, help='Nome modello come appare nella dashboard, es: "BMW X5"')
     g = p.add_mutually_exclusive_group(required=True)
-    g.add_argument("--video-ids", nargs="+", help="Uno o più ID video YouTube")
+    g.add_argument("--video-ids", nargs="+", help="Uno o più ID video YouTube (spazio-separati)")
+    g.add_argument("--video-ids-csv", help="ID video separati da virgola in una singola stringa "
+                                            "(usare questa forma se qualche ID inizia con '-': "
+                                            "es. --video-ids-csv=-uHQ8U_xEf4,Wt6HuAmPMjo — evita "
+                                            "qualsiasi ambiguità con argparse)")
     g.add_argument("--search", help="Query di ricerca per trovare video automaticamente")
     p.add_argument("--max-videos", type=int, default=5, help="Numero max video da --search")
     p.add_argument("--api-key", default=os.environ.get("YOUTUBE_API_KEY"),
@@ -235,6 +239,8 @@ def main():
 
     if args.video_ids:
         video_ids = args.video_ids
+    elif args.video_ids_csv:
+        video_ids = [v.strip() for v in args.video_ids_csv.split(",") if v.strip()]
     else:
         print(f"[YOUTUBE] Ricerca video per: '{args.search}'")
         video_ids = search_videos(youtube, args.search, args.max_videos)
