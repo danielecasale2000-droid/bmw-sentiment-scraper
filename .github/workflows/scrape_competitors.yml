@@ -9,7 +9,7 @@ name: Scraper competitor (YouTube)
 # un ID inizia per '-' o quando un modello ha piu' di un video sorgente.
 on:
   schedule:
-    - cron: '15,45 * * * *'   # sfasato di 15 min rispetto allo scrape.yml BMW
+    - cron: '30 */3 * * *'   # ogni 3 ore, sfasato di 30 min rispetto allo scrape.yml BMW
   workflow_dispatch:
 
 jobs:
