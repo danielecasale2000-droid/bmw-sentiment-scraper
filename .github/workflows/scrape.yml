@@ -4,7 +4,7 @@ name: Scraper commenti live
 # (tab Actions del repo -> Scraper commenti live -> Run workflow)
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '0 */3 * * *'   # ogni 3 ore (era ogni 30 min: troppe letture Firestore)
   workflow_dispatch:
 
 jobs:
