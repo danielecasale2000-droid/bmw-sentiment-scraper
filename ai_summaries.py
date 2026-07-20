@@ -13,7 +13,7 @@ COME FUNZIONA (efficiente e gratuito):
 - Manda a Gemini un campione dei commenti + i conteggi di sentiment
 - Riceve: cosa piace, cosa critica, giudizio complessivo, in italiano
 - Salva su Firestore nella collezione "ai_summaries", documento = nome modello
-- Usa gemini-1.5-flash (free tier: ~15 richieste/minuto, 1500/giorno)
+- Usa gemini-2.5-flash (free tier: 10 richieste/minuto, 250 richieste/giorno — giu 2026)
 
 PERCHE' GEMINI:
 - Free tier permanente e generoso, ampiamente sufficiente per 66 modelli/giorno
@@ -53,7 +53,7 @@ except ImportError:
 SERVICE_ACCOUNT_FILE = "serviceAccountKey.json"
 COMMENTS_COLLECTION = "comments"
 SUMMARIES_COLLECTION = "ai_summaries"
-GEMINI_MODEL = "gemini-1.5-flash"          # gratuito e veloce
+GEMINI_MODEL = "gemini-2.5-flash"          # free tier: 10 richieste/minuto, 250/giorno (giu 2026)
 MAX_COMMENTS_IN_PROMPT = 120               # campione max di commenti inviati per modello
 
 BMW_MODELS = ["BMW X5", "BMW iX3", "BMW i4", "BMW i7", "BMW i3"]
@@ -202,8 +202,8 @@ def main():
             done += 1
         except Exception as e:
             print(f"[{i+1}/{len(models)}] {model}: ERRORE {e}")
-        # free tier: ~15 richieste/minuto -> pausa di ~4.5s per stare tranquilli
-        time.sleep(4.5)
+        # free tier gemini-2.5-flash: 10 richieste/minuto -> almeno 6s tra una e l'altra
+        time.sleep(6.5)
 
     print(f"\n✔ Completato: {done} riassunti generati, {skipped} saltati.")
 
