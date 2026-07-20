@@ -107,7 +107,10 @@ def build_prompt(model, comments):
             texts.append("- " + (t[:300]))
     joined = "\n".join(texts)
 
-    prompt = f"""Sei un analista di customer experience per il settore automotive.
+    prompt = f"""Sei un analista di customer experience per il settore automotive, esperto nel
+sintetizzare grandi quantità di commenti in un giudizio chiaro e leggibile per un dirigente
+che ha poco tempo.
+
 Analizza i commenti reali degli utenti sul modello {model}, raccolti da video YouTube di recensioni.
 
 Dati aggregati: {total} commenti totali ({pos} positivi, {neg} negativi, {neu} neutri).
@@ -115,17 +118,25 @@ Dati aggregati: {total} commenti totali ({pos} positivi, {neg} negativi, {neu} n
 Ecco un campione dei commenti:
 {joined}
 
-Produci un'analisi sintetica e professionale IN ITALIANO, in formato JSON con esattamente questi campi:
+Scrivi un'analisi in ITALIANO, in formato JSON con esattamente questi campi:
 {{
-  "giudizio_complessivo": "una frase che riassume la percezione generale del modello",
-  "punti_di_forza": ["3-4 aspetti che gli utenti apprezzano di piu', frasi brevi"],
-  "punti_critici": ["3-4 aspetti piu' criticati, frasi brevi"],
-  "temi_ricorrenti": ["2-3 argomenti che tornano spesso nei commenti"],
+  "riassunto_positivo": "un paragrafo di 2-3 frasi complete e discorsive che riassume in modo specifico e concreto cosa apprezzano davvero gli utenti — non frasi generiche, cita gli aspetti reali che emergono dai commenti (es. design, prestazioni, prezzo, un dettaglio tecnico preciso). Se non ci sono commenti positivi significativi, scrivi una frase che lo dica onestamente.",
+  "riassunto_negativo": "un paragrafo di 2-3 frasi complete e discorsive che riassume in modo specifico e concreto le critiche principali — stessa profondità del riassunto positivo, con dettagli reali. Se non ci sono critiche significative, scrivi una frase che lo dica onestamente.",
+  "temi_ricorrenti": ["2-3 argomenti concreti che tornano spesso, frasi brevi"],
   "sentiment_reale": "positivo oppure misto oppure negativo"
 }}
 
-Considera il contesto reale: riconosci sarcasmo, ironia e negazioni (es. "non e' male" e' positivo).
-Basati SOLO sui commenti forniti, non inventare. Rispondi unicamente con il JSON, senza altro testo."""
+Regole importanti:
+- I due riassunti (positivo e negativo) sono il cuore dell'analisi: devono essere specifici,
+  informativi, mai vaghi o intercambiabili tra un modello e l'altro. Evita frasi da bigliettino
+  come "gli utenti sono generalmente soddisfatti" senza dire di cosa.
+- Se i commenti positivi e negativi toccano la STESSA categoria generale (es. entrambi parlano
+  di tecnologia), va benissimo — ma specifica ASPETTI DIVERSI e concreti all'interno di quella
+  categoria per ciascun lato (es. positivo: "il sistema di infotainment è reattivo"; negativo:
+  "il software presenta bug nell'aggiornamento").
+- Riconosci sarcasmo, ironia e negazioni (es. "non è male" è positivo).
+- Basati SOLO sui commenti forniti, non inventare fatti che non ci sono.
+- Rispondi unicamente con il JSON, senza altro testo, senza markdown."""
     return prompt
 
 
@@ -133,13 +144,13 @@ def generate_summary(model_client, model, comments):
     prompt = build_prompt(model, comments)
     resp = model_client.generate_content(prompt)
     text = (resp.text or "").strip()
-    text = text.replace("json", "").replace("", "").strip()
+    text = text.replace("```json", "").replace("```", "").strip()
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         print(f"[WARN] Risposta non JSON valido per {model}, salvo come testo grezzo.")
-        return {"giudizio_complessivo": text[:500], "punti_di_forza": [],
-                "punti_critici": [], "temi_ricorrenti": [], "sentiment_reale": "misto"}
+        return {"riassunto_positivo": text[:500], "riassunto_negativo": "",
+                "temi_ricorrenti": [], "sentiment_reale": "misto"}
 
 
 def save_summary(db, model, summary, comment_count):
@@ -194,7 +205,7 @@ def main():
         # free tier: ~15 richieste/minuto -> pausa di ~4.5s per stare tranquilli
         time.sleep(4.5)
 
-    print(f"\n✔️ Completato: {done} riassunti generati, {skipped} saltati.")
+    print(f"\n✔ Completato: {done} riassunti generati, {skipped} saltati.")
 
 
 main()
