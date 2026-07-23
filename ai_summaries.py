@@ -36,6 +36,13 @@ import sys
 import json
 import time
 
+# Forza l'output "non bufferizzato": senza questo, se il processo viene
+# interrotto a forza (es. timeout su GitHub Actions), tutte le righe di
+# log stampate ma non ancora "svuotate" su schermo vanno perse — dando
+# l'illusione che lo script non abbia fatto nulla, quando magari aveva
+# già superato metà dei modelli.
+sys.stdout.reconfigure(line_buffering=True)
+
 try:
     import google.generativeai as genai
 except ImportError:
@@ -89,7 +96,9 @@ def init_firestore():
 
 
 def fetch_comments(db, model):
-    snap = db.collection(COMMENTS_COLLECTION).where("model", "==", model).limit(500).get()
+    # timeout esplicito: senza, un problema di rete/credenziali può far
+    # ritentare la libreria in silenzio per minuti prima di arrendersi
+    snap = db.collection(COMMENTS_COLLECTION).where("model", "==", model).limit(500).get(timeout=30)
     return [d.to_dict() for d in snap]
 
 
@@ -142,7 +151,10 @@ Regole importanti:
 
 def generate_summary(model_client, model, comments):
     prompt = build_prompt(model, comments)
-    resp = model_client.generate_content(prompt)
+    resp = model_client.generate_content(
+        prompt,
+        request_options={"timeout": 60}  # fallisce dopo 60s invece di restare appeso
+    )
     text = (resp.text or "").strip()
     text = text.replace("```json", "").replace("```", "").strip()
     try:
@@ -190,7 +202,13 @@ def main():
     done, skipped = 0, 0
 
     for i, model in enumerate(models):
-        comments = fetch_comments(db, model)
+        print(f"[{i+1}/{len(models)}] {model}: lettura commenti da Firestore…")
+        try:
+            comments = fetch_comments(db, model)
+        except Exception as e:
+            print(f"[{i+1}/{len(models)}] {model}: ERRORE lettura Firestore: {e}")
+            continue
+
         if len(comments) < args.min_comments:
             print(f"[{i+1}/{len(models)}] {model}: solo {len(comments)} commenti, salto.")
             skipped += 1
@@ -201,7 +219,7 @@ def main():
             print(f"[{i+1}/{len(models)}] {model}: riassunto generato ({len(comments)} commenti) -> {summary.get('sentiment_reale','?')}")
             done += 1
         except Exception as e:
-            print(f"[{i+1}/{len(models)}] {model}: ERRORE {e}")
+            print(f"[{i+1}/{len(models)}] {model}: ERRORE generazione AI: {e}")
         # free tier gemini-2.5-flash: 10 richieste/minuto -> almeno 6s tra una e l'altra
         time.sleep(6.5)
 
