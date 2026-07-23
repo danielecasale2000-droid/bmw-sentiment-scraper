@@ -35,6 +35,7 @@ import os
 import sys
 import json
 import time
+import threading
 
 # Forza l'output "non bufferizzato": senza questo, se il processo viene
 # interrotto a forza (es. timeout su GitHub Actions), tutte le righe di
@@ -199,31 +200,56 @@ def main():
     print(f"[SETUP] Firestore connesso. Modello AI: {GEMINI_MODEL} (Google Gemini, free tier)")
 
     models = [args.model] if args.model else (BMW_MODELS + COMPETITOR_MODELS)
-    done, skipped = 0, 0
+    done, skipped, timed_out = 0, 0, 0
+    PER_MODEL_HARD_TIMEOUT = 60  # secondi: oltre questo, si abbandona e si passa oltre
 
-    for i, model in enumerate(models):
-        print(f"[{i+1}/{len(models)}] {model}: lettura commenti da Firestore…")
+    def process_one(model, outcome):
+        """Gira in un thread a parte: legge Firestore, chiama Gemini, salva.
+        'outcome' è un dict condiviso in cui scrive il risultato — il thread
+        principale lo legge SOLO se il join rientra nel timeout."""
         try:
             comments = fetch_comments(db, model)
         except Exception as e:
-            print(f"[{i+1}/{len(models)}] {model}: ERRORE lettura Firestore: {e}")
-            continue
-
+            outcome["error"] = f"lettura Firestore: {e}"
+            return
+        outcome["comments"] = comments
         if len(comments) < args.min_comments:
-            print(f"[{i+1}/{len(models)}] {model}: solo {len(comments)} commenti, salto.")
-            skipped += 1
-            continue
+            return
         try:
             summary = generate_summary(model_client, model, comments)
             save_summary(db, model, summary, len(comments))
-            print(f"[{i+1}/{len(models)}] {model}: riassunto generato ({len(comments)} commenti) -> {summary.get('sentiment_reale','?')}")
-            done += 1
+            outcome["summary"] = summary
         except Exception as e:
-            print(f"[{i+1}/{len(models)}] {model}: ERRORE generazione AI: {e}")
+            outcome["error"] = f"generazione AI: {e}"
+
+    for i, model in enumerate(models):
+        print(f"[{i+1}/{len(models)}] {model}: lettura commenti da Firestore…")
+        outcome = {}
+        t = threading.Thread(target=process_one, args=(model, outcome), daemon=True)
+        t.start()
+        t.join(timeout=PER_MODEL_HARD_TIMEOUT)
+
+        if t.is_alive():
+            # Il thread è ancora bloccato (tipicamente un problema di rete/
+            # libreria che ignora i timeout interni): lo abbandoniamo e
+            # proseguiamo, così un solo modello non blocca l'intero giro.
+            print(f"[{i+1}/{len(models)}] {model}: BLOCCATO oltre {PER_MODEL_HARD_TIMEOUT}s, salto e proseguo.")
+            timed_out += 1
+        elif "error" in outcome:
+            print(f"[{i+1}/{len(models)}] {model}: ERRORE {outcome['error']}")
+        elif "summary" not in outcome:
+            n = len(outcome.get("comments", []))
+            print(f"[{i+1}/{len(models)}] {model}: solo {n} commenti, salto.")
+            skipped += 1
+        else:
+            n = len(outcome["comments"])
+            print(f"[{i+1}/{len(models)}] {model}: riassunto generato ({n} commenti) -> {outcome['summary'].get('sentiment_reale','?')}")
+            done += 1
+
         # free tier gemini-2.5-flash: 10 richieste/minuto -> almeno 6s tra una e l'altra
         time.sleep(6.5)
 
-    print(f"\n✔ Completato: {done} riassunti generati, {skipped} saltati.")
+    print(f"\n✔ Completato: {done} riassunti generati, {skipped} saltati, {timed_out} bloccati/abbandonati.")
 
 
 main()
