@@ -30,7 +30,7 @@ jobs:
       - name: Generate AI summaries
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python ai_summaries.py --min-comments 5
+        run: python -u ai_summaries.py --min-comments 5
 
       - name: Cleanup key
         if: always()
