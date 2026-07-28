@@ -64,7 +64,7 @@ SUMMARIES_COLLECTION = "ai_summaries"
 GEMINI_MODEL = "gemini-2.5-flash"          # free tier: 10 richieste/minuto, 250/giorno (giu 2026)
 MAX_COMMENTS_IN_PROMPT = 120               # campione max di commenti inviati per modello
 
-BMW_MODELS = ["BMW X5", "BMW iX3", "BMW i4", "BMW i7", "BMW i3"]
+BMW_MODELS = ["BMW X5", "BMW iX3", "BMW i4", "BMW i7", "BMW i3", "BMW X1", "BMW X3", "BMW Serie 5"]
 
 COMPETITOR_MODELS = [
     "Avatr 12", "BYD Atto 2 DM-i", "BYD Atto 3", "BYD Han", "BYD Seal",
