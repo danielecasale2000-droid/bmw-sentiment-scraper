@@ -206,6 +206,52 @@ def fetch_comments_for_video(youtube, video_id: str) -> list:
     return results
 
 
+def fetch_video_stats(youtube, video_id: str) -> dict:
+    """Legge viewCount e likeCount ufficiali del video (1 unità di quota,
+    economico). Ritorna {} se il video non esiste o le statistiche sono
+    private/disabilitate."""
+    try:
+        resp = youtube.videos().list(part="statistics", id=video_id).execute()
+        items = resp.get("items", [])
+        if not items:
+            return {}
+        stats = items[0].get("statistics", {})
+        return {
+            "views": int(stats.get("viewCount", 0)),
+            "likes": int(stats.get("likeCount", 0)) if "likeCount" in stats else 0,
+        }
+    except HttpError as e:
+        print(f"[INFO] Statistiche non disponibili per {video_id}: {e}")
+        return {}
+
+
+def save_video_stats(db, model: str, video_ids: list, youtube):
+    """Somma views/likes su tutti i video sorgente di un modello e salva
+    il totale su Firestore, collezione 'video_stats'. Usato dalla dashboard
+    per pesare le stelline col gradimento reale del pubblico (likes/views),
+    non solo col sentiment dei commenti."""
+    total_views = 0
+    total_likes = 0
+    for vid in video_ids:
+        stats = fetch_video_stats(youtube, vid)
+        total_views += stats.get("views", 0)
+        total_likes += stats.get("likes", 0)
+
+    doc_id = model.replace("/", "-")
+    db.collection("video_stats").document(doc_id).set({
+        "model": model,
+        "total_views": total_views,
+        "total_likes": total_likes,
+        "video_count": len(video_ids),
+        "updated_at": firestore.SERVER_TIMESTAMP,
+    })
+    if total_views > 0:
+        pct = (total_likes / total_views) * 100
+        print(f"[STATS] {model}: {total_views} visualizzazioni, {total_likes} likes ({pct:.2f}%)")
+    else:
+        print(f"[STATS] {model}: statistiche non disponibili (video privati o senza dati pubblici).")
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -263,6 +309,9 @@ def main():
         time.sleep(1)  # cortesia verso l'API, ben sotto i limiti di quota
 
     print(f"\n✔ Ciclo completato: {total_new} nuovi commenti su Firestore (modello: {args.model})")
+
+    # Statistiche views/likes per il peso "gradimento pubblico" delle stelline
+    save_video_stats(db, args.model, video_ids, youtube)
 
 
 if __name__ == "__main__":
