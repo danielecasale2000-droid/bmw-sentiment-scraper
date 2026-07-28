@@ -130,20 +130,21 @@ Ecco un campione dei commenti:
 
 Scrivi un'analisi in ITALIANO, in formato JSON con esattamente questi campi:
 {{
-  "riassunto_positivo": "un paragrafo di 2-3 frasi complete e discorsive che riassume in modo specifico e concreto cosa apprezzano davvero gli utenti — non frasi generiche, cita gli aspetti reali che emergono dai commenti (es. design, prestazioni, prezzo, un dettaglio tecnico preciso). Se non ci sono commenti positivi significativi, scrivi una frase che lo dica onestamente.",
-  "riassunto_negativo": "un paragrafo di 2-3 frasi complete e discorsive che riassume in modo specifico e concreto le critiche principali — stessa profondità del riassunto positivo, con dettagli reali. Se non ci sono critiche significative, scrivi una frase che lo dica onestamente.",
+  "punti_positivi": ["3-5 punti concreti e specifici su cosa apprezzano davvero gli utenti — non frasi generiche, cita gli aspetti reali che emergono dai commenti (es. design, prestazioni, prezzo, un dettaglio tecnico preciso). Ogni punto è una frase breve e autonoma. Se non ci sono commenti positivi significativi, un solo punto che lo dica onestamente."],
+  "punti_critici": ["3-5 punti concreti e specifici sulle critiche principali — stessa profondità dei punti positivi, con dettagli reali. Ogni punto è una frase breve e autonoma. Se non ci sono critiche significative, un solo punto che lo dica onestamente."],
   "temi_ricorrenti": ["2-3 argomenti concreti che tornano spesso, frasi brevi"],
   "sentiment_reale": "positivo oppure misto oppure negativo"
 }}
 
 Regole importanti:
-- I due riassunti (positivo e negativo) sono il cuore dell'analisi: devono essere specifici,
+- I punti positivi e critici sono il cuore dell'analisi: devono essere specifici,
   informativi, mai vaghi o intercambiabili tra un modello e l'altro. Evita frasi da bigliettino
   come "gli utenti sono generalmente soddisfatti" senza dire di cosa.
 - Se i commenti positivi e negativi toccano la STESSA categoria generale (es. entrambi parlano
   di tecnologia), va benissimo — ma specifica ASPETTI DIVERSI e concreti all'interno di quella
   categoria per ciascun lato (es. positivo: "il sistema di infotainment è reattivo"; negativo:
   "il software presenta bug nell'aggiornamento").
+- Ogni punto deve poter stare da solo, senza bisogno degli altri per essere capito.
 - Riconosci sarcasmo, ironia e negazioni (es. "non è male" è positivo).
 - Basati SOLO sui commenti forniti, non inventare fatti che non ci sono.
 - Rispondi unicamente con il JSON, senza altro testo, senza markdown."""
@@ -162,7 +163,7 @@ def generate_summary(model_client, model, comments):
         return json.loads(text)
     except json.JSONDecodeError:
         print(f"[WARN] Risposta non JSON valido per {model}, salvo come testo grezzo.")
-        return {"riassunto_positivo": text[:500], "riassunto_negativo": "",
+        return {"punti_positivi": [text[:300]], "punti_critici": [],
                 "temi_ricorrenti": [], "sentiment_reale": "misto"}
 
 
