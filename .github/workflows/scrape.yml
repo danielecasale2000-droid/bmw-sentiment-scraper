@@ -38,7 +38,7 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: >
           python youtube_firestore.py --model "BMW X5"
-          --video-ids iNhLIrK_xoU
+          --video-ids-csv=iNhLIrK_xoU,4D032uYKPnA,3Hz0Ds8YjZo
         continue-on-error: true
 
       - name: Run YouTube fetcher BMW i7
@@ -62,7 +62,7 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: >
           python youtube_firestore.py --model "BMW iX3"
-          --video-ids hovl1LbuTjc
+          --video-ids-csv=hovl1LbuTjc,kjo0p6Z2h1s,hDnRf-aGCGA
         continue-on-error: true
 
       - name: Run YouTube fetcher BMW i4
@@ -70,7 +70,7 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: >
           python youtube_firestore.py --model "BMW i4"
-          --video-ids=-SbbyrUv9tY
+          --video-ids-csv=-SbbyrUv9tY,BwgUE9vZCpE,Yd7gGmhyB9g
         continue-on-error: true
 
       - name: Run YouTube fetcher BMW X1
@@ -78,7 +78,7 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: >
           python youtube_firestore.py --model "BMW X1"
-          --video-ids tlbgg3MZLS4
+          --video-ids-csv=tlbgg3MZLS4,Ey_tT9St3Zc
         continue-on-error: true
 
       - name: Run YouTube fetcher BMW X3
@@ -86,7 +86,7 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: >
           python youtube_firestore.py --model "BMW X3"
-          --video-ids YictUHvodqk
+          --video-ids-csv=YictUHvodqk,SmU46wtA4k0
         continue-on-error: true
 
       - name: Run YouTube fetcher BMW Serie 5
