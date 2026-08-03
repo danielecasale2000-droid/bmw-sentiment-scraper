@@ -252,6 +252,53 @@ def save_video_stats(db, model: str, video_ids: list, youtube):
         print(f"[STATS] {model}: statistiche non disponibili (video privati o senza dati pubblici).")
 
 
+def video_needs_scraping(db, video_id: str, refresh_days: int) -> bool:
+    """Controlla se un video è già stato scaricato di recente.
+
+    PERCHÉ ESISTE: senza questo, ogni ciclo ri-controllava TUTTI i commenti
+    già salvati (1 lettura Firestore ciascuno) — con 72 modelli erano
+    ~25.000 letture a giro, che esaurivano la quota gratuita giornaliera.
+    I commenti di un video pubblicato mesi fa non cambiano di giorno in
+    giorno: basta una sola lettura per video per sapere se serve rifarlo.
+
+    Ritorna True se il video non è mai stato elaborato o se l'ultimo
+    scaricamento è più vecchio di refresh_days.
+    """
+    from datetime import datetime, timezone, timedelta
+    try:
+        snap = db.collection("scrape_state").document(video_id).get(timeout=30)
+        if not snap.exists:
+            return True
+        last = snap.to_dict().get("last_scraped_at")
+        if last is None:
+            return True
+        # Firestore restituisce un datetime con timezone
+        age = datetime.now(timezone.utc) - last
+        if age > timedelta(days=refresh_days):
+            print(f"[REFRESH] {video_id}: ultimo scaricamento {age.days} giorni fa, aggiorno.")
+            return True
+        print(f"[SKIP] {video_id}: già scaricato {age.days} giorni fa, salto (risparmio letture Firestore).")
+        return False
+    except Exception as e:
+        # In caso di dubbio, meglio scaricare che saltare
+        print(f"[WARN] Impossibile leggere lo stato di {video_id} ({e}), procedo comunque.")
+        return True
+
+
+def mark_video_scraped(db, video_id: str, model: str, comment_count: int):
+    """Registra che il video è stato elaborato, così i cicli successivi
+    possono saltarlo senza rileggerne tutti i commenti."""
+    try:
+        db.collection("scrape_state").document(video_id).set({
+            "video_id": video_id,
+            "model": model,
+            "comment_count": comment_count,
+            "last_scraped_at": firestore.SERVER_TIMESTAMP,
+        })
+    except Exception as e:
+        print(f"[WARN] Impossibile salvare lo stato di {video_id}: {e}")
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -267,6 +314,12 @@ def parse_args():
                                             "qualsiasi ambiguità con argparse)")
     g.add_argument("--search", help="Query di ricerca per trovare video automaticamente")
     p.add_argument("--max-videos", type=int, default=5, help="Numero max video da --search")
+    p.add_argument("--refresh-days", type=int, default=7,
+                    help="Ogni quanti giorni ri-scaricare un video già elaborato "
+                         "(default 7). Serve a risparmiare letture Firestore: i "
+                         "commenti di un video non cambiano di giorno in giorno.")
+    p.add_argument("--force", action="store_true",
+                    help="Ignora la memoria dei video già scaricati e rielabora tutto.")
     p.add_argument("--api-key", default=os.environ.get("YOUTUBE_API_KEY"),
                     help="Chiave API YouTube (o variabile d'ambiente YOUTUBE_API_KEY)")
     return p.parse_args()
@@ -297,18 +350,29 @@ def main():
         sys.exit(1)
 
     total_new = 0
+    skipped_videos = 0
     for i, vid in enumerate(video_ids):
         print(f"\n--- [{i+1}/{len(video_ids)}] Video {vid} ---")
+
+        # 1 sola lettura Firestore per decidere se serve rielaborare questo
+        # video, invece di ~350 letture per il controllo anti-duplicati
+        if not args.force and not video_needs_scraping(db, vid, args.refresh_days):
+            skipped_videos += 1
+            continue
+
         comments = fetch_comments_for_video(youtube, vid)
         new_count = 0
         for author, text, timestamp in comments:
             if text and save_comment(db, args.model, author, text, timestamp, vid):
                 new_count += 1
         print(f"[OK] {vid} -> {len(comments)} commenti letti, {new_count} NUOVI salvati su Firestore")
+        mark_video_scraped(db, vid, args.model, len(comments))
         total_new += new_count
         time.sleep(1)  # cortesia verso l'API, ben sotto i limiti di quota
 
     print(f"\n✔ Ciclo completato: {total_new} nuovi commenti su Firestore (modello: {args.model})")
+    if skipped_videos:
+        print(f"  ({skipped_videos} video saltati perché già scaricati di recente)")
 
     # Statistiche views/likes per il peso "gradimento pubblico" delle stelline
     save_video_stats(db, args.model, video_ids, youtube)
