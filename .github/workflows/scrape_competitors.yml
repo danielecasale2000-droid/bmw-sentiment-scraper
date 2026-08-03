@@ -9,7 +9,8 @@ name: Scraper competitor (YouTube)
 # un ID inizia per '-' o quando un modello ha piu' di un video sorgente.
 on:
   schedule:
-    - cron: '30 */3 * * *'   # ogni 3 ore, sfasato di 30 min rispetto allo scrape.yml BMW
+    - cron: '0 3 * * *'   # 1 volta al giorno (03:00 UTC), sfasato di 1h dallo scrape BMW
+                          # per non concentrare tutte le letture Firestore nello stesso momento.
   workflow_dispatch:
 
 jobs:
