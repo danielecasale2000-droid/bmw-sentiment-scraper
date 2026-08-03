@@ -143,6 +143,12 @@ jobs:
             video_ids_csv: "MnbK0ZmaNC8,hiLhbl5Sp0s"
           - model: "Xpeng G6"
             video_ids_csv: "DdhgKds2ybU"
+          - model: "Yangwang U7"
+            video_ids_csv: "_aUPAD-6Cbs"
+          - model: "Yangwang U8"
+            video_ids_csv: "F2LKrE647vI"
+          - model: "Yangwang U9"
+            video_ids_csv: "kE6VDvbrSaM"
 
     steps:
       - name: Checkout repository
