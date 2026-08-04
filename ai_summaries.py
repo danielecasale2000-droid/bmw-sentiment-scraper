@@ -64,7 +64,7 @@ SUMMARIES_COLLECTION = "ai_summaries"
 GEMINI_MODEL = "gemini-2.5-flash"          # free tier: 10 richieste/minuto, 250/giorno (giu 2026)
 MAX_COMMENTS_IN_PROMPT = 120               # campione max di commenti inviati per modello
 
-BMW_MODELS = ["BMW X5", "BMW iX3", "BMW i4", "BMW i7", "BMW i3", "BMW X1", "BMW X3", "BMW Serie 5"]
+BMW_MODELS = ["BMW X5", "BMW iX3", "BMW i4", "BMW i7", "BMW i3", "BMW X1", "BMW X3", "BMW Serie 5", "BMW Serie 1"]
 
 COMPETITOR_MODELS = [
     "Avatr 12", "BYD Atto 2 DM-i", "BYD Atto 3", "BYD Han", "BYD Seal",
@@ -80,6 +80,9 @@ COMPETITOR_MODELS = [
     "Polestar 4", "Polestar 5", "Smart 5", "Tesla Model 3", "Tesla Model Y",
     "Volvo ES90", "Volvo EX40", "Volvo EX60", "Volvo EX90", "Volvo XC60",
     "Volvo XC90", "Xpeng G6",
+    "Yangwang U7", "Yangwang U8", "Yangwang U9",
+    "Xiaomi SU7", "Xiaomi YU7",
+    "Geely Starray SAV", "Leapmotor T03 Hatchback",
 ]
 
 
