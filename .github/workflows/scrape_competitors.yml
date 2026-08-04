@@ -154,6 +154,10 @@ jobs:
             video_ids_csv: "nB3AVekGT1o"
           - model: "Xiaomi YU7"
             video_ids_csv: "fF7046QI6FU"
+          - model: "Geely Starray SAV"
+            video_ids_csv: "RKQLjktNAMc"
+          - model: "Leapmotor T03 Hatchback"
+            video_ids_csv: "7Xz8kUcLTiw"
 
     steps:
       - name: Checkout repository
