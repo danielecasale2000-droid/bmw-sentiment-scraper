@@ -150,6 +150,10 @@ jobs:
             video_ids_csv: "F2LKrE647vI"
           - model: "Yangwang U9"
             video_ids_csv: "kE6VDvbrSaM"
+          - model: "Xiaomi SU7"
+            video_ids_csv: "nB3AVekGT1o"
+          - model: "Xiaomi YU7"
+            video_ids_csv: "fF7046QI6FU"
 
     steps:
       - name: Checkout repository
