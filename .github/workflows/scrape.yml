@@ -91,6 +91,14 @@ jobs:
           --video-ids-csv=YictUHvodqk,SmU46wtA4k0
         continue-on-error: true
 
+      - name: Run YouTube fetcher BMW Serie 1
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: >
+          python youtube_firestore.py --model "BMW Serie 1"
+          --video-ids-csv=qSRoV7S45Vo
+        continue-on-error: true
+
       - name: Run YouTube fetcher BMW Serie 5
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
