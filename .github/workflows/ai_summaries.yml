@@ -81,6 +81,7 @@ COMPETITOR_MODELS = [
     "Volvo ES90", "Volvo EX40", "Volvo EX60", "Volvo EX90", "Volvo XC60",
     "Volvo XC90", "Xpeng G6",
     "Yangwang U7", "Yangwang U8", "Yangwang U9",
+    "Xiaomi SU7", "Xiaomi YU7",
 ]
 
 
