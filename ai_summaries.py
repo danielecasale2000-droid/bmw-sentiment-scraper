@@ -62,7 +62,7 @@ SERVICE_ACCOUNT_FILE = "serviceAccountKey.json"
 COMMENTS_COLLECTION = "comments"
 SUMMARIES_COLLECTION = "ai_summaries"
 GEMINI_MODEL = "gemini-2.5-flash"          # free tier: 10 richieste/minuto, 250/giorno (giu 2026)
-MAX_COMMENTS_IN_PROMPT = 120               # campione max di commenti inviati per modello
+MAX_COMMENTS_IN_PROMPT = 30                # ridotto da 120: meno commenti nel prompt = molti meno token in ingresso
 
 BMW_MODELS = ["BMW X5", "BMW iX3", "BMW i4", "BMW i7", "BMW i3", "BMW X1", "BMW X3", "BMW Serie 5", "BMW Serie 1"]
 
@@ -109,48 +109,30 @@ def fetch_comments(db, model):
 def build_prompt(model, comments):
     pos = sum(1 for c in comments if c.get("sentiment") == "positive")
     neg = sum(1 for c in comments if c.get("sentiment") == "negative")
-    neu = sum(1 for c in comments if c.get("sentiment") == "neutral")
     total = len(comments)
 
+    # Campione ridotto e commenti troncati più corti: qui si risparmiano
+    # la maggior parte dei token in ingresso (che pesano più dell'output).
     sample = comments[:MAX_COMMENTS_IN_PROMPT]
     texts = []
     for c in sample:
         t = (c.get("text") or "").strip().replace("\n", " ")
         if t:
-            texts.append("- " + (t[:300]))
+            texts.append("- " + t[:150])
     joined = "\n".join(texts)
 
-    prompt = f"""Sei un analista di customer experience per il settore automotive, esperto nel
-sintetizzare grandi quantità di commenti in un giudizio chiaro e leggibile per un dirigente
-che ha poco tempo.
+    prompt = f"""Analizza questi commenti YouTube sul modello auto {model} ({total} totali, {pos} positivi, {neg} negativi).
 
-Analizza i commenti reali degli utenti sul modello {model}, raccolti da video YouTube di recensioni.
-
-Dati aggregati: {total} commenti totali ({pos} positivi, {neg} negativi, {neu} neutri).
-
-Ecco un campione dei commenti:
 {joined}
 
-Scrivi un'analisi in ITALIANO, in formato JSON con esattamente questi campi:
+Rispondi SOLO con questo JSON, valori brevi (max 12 parole ciascuno), in italiano:
 {{
-  "punti_positivi": ["3-5 punti concreti e specifici su cosa apprezzano davvero gli utenti — non frasi generiche, cita gli aspetti reali che emergono dai commenti (es. design, prestazioni, prezzo, un dettaglio tecnico preciso). Ogni punto è una frase breve e autonoma. Se non ci sono commenti positivi significativi, un solo punto che lo dica onestamente."],
-  "punti_critici": ["3-5 punti concreti e specifici sulle critiche principali — stessa profondità dei punti positivi, con dettagli reali. Ogni punto è una frase breve e autonoma. Se non ci sono critiche significative, un solo punto che lo dica onestamente."],
-  "temi_ricorrenti": ["2-3 argomenti concreti che tornano spesso, frasi brevi"],
-  "sentiment_reale": "positivo oppure misto oppure negativo"
+  "design": {{"apprezzato": "...", "criticato": "..."}},
+  "tecnico": {{"apprezzato": "...", "criticato": "..."}},
+  "tecnologia": {{"apprezzato": "...", "criticato": "..."}},
+  "sentiment_reale": "positivo o misto o negativo"
 }}
-
-Regole importanti:
-- I punti positivi e critici sono il cuore dell'analisi: devono essere specifici,
-  informativi, mai vaghi o intercambiabili tra un modello e l'altro. Evita frasi da bigliettino
-  come "gli utenti sono generalmente soddisfatti" senza dire di cosa.
-- Se i commenti positivi e negativi toccano la STESSA categoria generale (es. entrambi parlano
-  di tecnologia), va benissimo — ma specifica ASPETTI DIVERSI e concreti all'interno di quella
-  categoria per ciascun lato (es. positivo: "il sistema di infotainment è reattivo"; negativo:
-  "il software presenta bug nell'aggiornamento").
-- Ogni punto deve poter stare da solo, senza bisogno degli altri per essere capito.
-- Riconosci sarcasmo, ironia e negazioni (es. "non è male" è positivo).
-- Basati SOLO sui commenti forniti, non inventare fatti che non ci sono.
-- Rispondi unicamente con il JSON, senza altro testo, senza markdown."""
+Se un aspetto non è citato nei commenti, scrivi "non menzionato". Nessun testo fuori dal JSON."""
     return prompt
 
 
@@ -162,12 +144,13 @@ def generate_summary(model_client, model, comments):
     )
     text = (resp.text or "").strip()
     text = text.replace("```json", "").replace("```", "").strip()
+    empty_aspect = {"apprezzato": "non menzionato", "criticato": "non menzionato"}
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        print(f"[WARN] Risposta non JSON valido per {model}, salvo come testo grezzo.")
-        return {"punti_positivi": [text[:300]], "punti_critici": [],
-                "temi_ricorrenti": [], "sentiment_reale": "misto"}
+        print(f"[WARN] Risposta non JSON valido per {model}, salvo un fallback vuoto.")
+        return {"design": empty_aspect, "tecnico": empty_aspect, "tecnologia": empty_aspect,
+                "sentiment_reale": "misto"}
 
 
 def save_summary(db, model, summary, comment_count):
